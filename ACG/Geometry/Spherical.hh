@@ -1,0 +1,173 @@
+/*===========================================================================*\
+ *                                                                           *
+ *                              OpenFlipper                                  *
+ *      Copyright (C) 2001-2011 by Computer Graphics Group, RWTH Aachen      *
+ *                           www.openflipper.org                             *
+ *                                                                           *
+ *---------------------------------------------------------------------------*
+ *  This file is part of OpenFlipper.                                        *
+ *                                                                           *
+ *  OpenFlipper is free software: you can redistribute it and/or modify      *
+ *  it under the terms of the GNU Lesser General Public License as           *
+ *  published by the Free Software Foundation, either version 3 of           *
+ *  the License, or (at your option) any later version with the              *
+ *  following exceptions:                                                    *
+ *                                                                           *
+ *  If other files instantiate templates or use macros                       *
+ *  or inline functions from this file, or you compile this file and         *
+ *  link it with other files to produce an executable, this file does        *
+ *  not by itself cause the resulting executable to be covered by the        *
+ *  GNU Lesser General Public License. This exception does not however       *
+ *  invalidate any other reasons why the executable file might be            *
+ *  covered by the GNU Lesser General Public License.                        *
+ *                                                                           *
+ *  OpenFlipper is distributed in the hope that it will be useful,           *
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of           *
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            *
+ *  GNU Lesser General Public License for more details.                      *
+ *                                                                           *
+ *  You should have received a copy of the GNU LesserGeneral Public          *
+ *  License along with OpenFlipper. If not,                                  *
+ *  see <http://www.gnu.org/licenses/>.                                      *
+ *                                                                           *
+\*===========================================================================*/
+
+/*===========================================================================*\
+ *                                                                           *
+ *   $Revision: 15683 $                                                      *
+ *   $Author: moebius $                                                      *
+ *   $Date: 2012-10-18 15:47:18 +0800 (Thu, 18 Oct 2012) $                    *
+ *                                                                           *
+\*===========================================================================*/
+
+
+/*
+ * Spherical.hh
+ *
+ *  Created on: Sep 18, 2012
+ *      Author: ebke
+ */
+
+#ifndef ACG_GEOMETRY_SPHERICAL_HH_
+#define ACG_GEOMETRY_SPHERICAL_HH_
+
+#include <ACG/Math/GLMatrixT.hh>
+#include <cmath>
+#include <stdexcept>
+
+namespace ACG {
+namespace Geometry {
+
+static const double epsilon = 1e-6;
+
+namespace Spherical_Private {
+
+template<class Vec>
+static inline typename Vec::value_type angleBetween(const Vec &v1, const Vec &v2, const Vec &normal) {
+    typedef typename Vec::value_type Scalar;
+
+    /*
+     * Handle unstable 0 degree special case.
+     * (0 degrees can easily become 360 degrees.)
+     */
+    const Scalar dotProd = v1 | v2;
+    if (std::abs(dotProd - 1.0) < epsilon) return 0;
+
+    /*
+     * General case: Use determinant to check >/< 180 degree.
+     */
+    const Scalar det = GLMatrixT<Scalar>(normal, v1, v2).determinant();
+
+    /*
+     * Interpret arc cos accrodingly.
+     */
+    const Scalar arcos_angle = std::acos(std::max(-1.0, std::min(1.0, dotProd)));
+
+    if (det >= -1e-6)
+        return arcos_angle;
+    else
+        return 2 * M_PI - arcos_angle;
+}
+
+template<class Vec>
+static inline typename Vec::value_type angleBetween(const Vec &v1, const Vec &v2) {
+    const Vec normal = (v1 % v2).normalized();
+    return angleBetween(v1, v2, normal);
+}
+
+} /* namespace Spherical_Private */
+
+/**
+ * Compute inner angle sum of the spherical triangle specified by
+ * the three supplied unit vectors.
+ *
+ * @param n0 Must be unit length.
+ * @param n1 Must be unit length.
+ * @param n2 Must be unit length.
+ *
+ * @return Inner angle sum of the specified spherical triangle.
+ */
+template<class Vec>
+static inline typename Vec::value_type sphericalInnerAngleSum(const Vec &n0, const Vec &n1, const Vec &n2) {
+    typedef typename Vec::value_type Scalar;
+
+    const Scalar a = Spherical_Private::angleBetween(n0, n1);
+    const Scalar b = Spherical_Private::angleBetween(n1, n2);
+    const Scalar c = Spherical_Private::angleBetween(n2, n0);
+    if (a < epsilon || b < epsilon || c < epsilon) return M_PI;
+
+    const Scalar s = .5 * (a + b + c);
+    const Scalar sin_s = std::sin(s);
+    const Scalar sin_a = std::sin(a);
+    const Scalar sin_b = std::sin(b);
+    const Scalar sin_c = std::sin(c);
+
+#ifndef NDEBUG
+    if (std::sin(s - a) < -1e-4) throw std::logic_error("ACG::Geometry::sphericalInnerAngleSum(): 0 > s-a");
+    if (std::sin(s - b) < -1e-4) throw std::logic_error("ACG::Geometry::sphericalInnerAngleSum(): 0 > s-b");
+    if (std::sin(s - c) < -1e-4) throw std::logic_error("ACG::Geometry::sphericalInnerAngleSum(): 0 > s-c");
+#endif
+
+    const Scalar alpha_2 = std::acos(std::min(1.0, std::sqrt(sin_s * std::max(.0, std::sin(s - a)) / (sin_b * sin_c))));
+    const Scalar beta_2  = std::acos(std::min(1.0, std::sqrt(sin_s * std::max(.0, std::sin(s - b)) / (sin_c * sin_a))));
+    const Scalar gamma_2 = std::acos(std::min(1.0, std::sqrt(sin_s * std::max(.0, std::sin(s - c)) / (sin_a * sin_b))));
+
+    return 2 * (alpha_2 + beta_2 + gamma_2);
+}
+
+/**
+ * Compute gauss curvature of spherical polyhedral spanned by the
+ * supplied unit length normals. Normals have to be supplied in
+ * CCW order.
+ *
+ * @return Gauss curvature of the supplied spherical polyhedral.
+ */
+template<class Vec, class INPUT_ITERATOR>
+static inline typename Vec::value_type sphericalPolyhedralGaussCurv(INPUT_ITERATOR normals_begin, INPUT_ITERATOR normals_end) {
+    typedef typename Vec::value_type Scalar;
+
+    if (normals_begin == normals_end) return 0;
+    Vec n0 = *(normals_begin++);
+
+    if (normals_begin == normals_end) return 0;
+    Vec n2 = *(normals_begin++);
+
+    Scalar result = 0;
+    while (normals_begin != normals_end) {
+        /*
+         * Next triangle.
+         */
+        const Vec n1 = n2;
+        n2 = *(normals_begin++);
+
+        const Scalar sign = GLMatrixT<Scalar>(n0, n1, n2).determinant() >= 0 ? 1 : -1;
+        result += sign * (sphericalInnerAngleSum(n0, n1, n2) - M_PI);
+    }
+
+    return result;
+}
+
+} /* namespace Geometry */
+} /* namespace ACG */
+
+#endif /* ACG_GEOMETRY_SPHERICAL_HH_ */

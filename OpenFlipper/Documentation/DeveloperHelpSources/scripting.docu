@@ -1,0 +1,66 @@
+/*!
+\page scripting OpenFlipper Scripting
+
+TODO: OpenFlipper Scripting and examples.
+
+  \section scripting_iterating Iterating over objects
+    In the scripting system you can also iterate over objects in the scene.
+
+    \code
+      // Get a list of all target triangle meshes in the scene
+      var list = datacontrol.getTargetObjects(DataType("TriangleMesh"));
+
+      // Print the names of all target objects
+      for( object in list )
+      {
+        print(datacontrol.getObjectName(list[object]))
+      }
+    \endcode
+
+
+  \section scripting_datattypes DataTypes
+    In the scripting system the type DataType is already known. You can do for example
+    \code
+      DataType("TriangleMesh");
+    \endcode
+    You can get a string list with all available data types via
+    \code
+      // Get the string list of data types via DataControl Plugin
+      var types = datacontrol.availableDataTypeNames();
+    \endcode
+
+    \subsection scripting_datattypes_getting_type Getting the DataType of an Object
+      \code
+      // Set the object id
+      var object = 5;
+
+      // Get the DataTypes and print its name
+      print(datacontrol.dataType(object))
+      \endcode
+
+  \section scripting_vectortype Vector data type
+     The Vec3d used in the C++ code is mapped to the scripting language. Details
+     can be found here:
+       \subpage scripting_vector_type
+
+  \section scripting_matrixtype Matrix data type
+     The Matrix4x4T type used in the C++ code is mapped to the scripting language. Details
+     can be found here:
+       \subpage scripting_matrix_type
+    
+  \section scripting_examples Scripting Examples
+    \subsection scripting_examples_qstringlist Iterating over a QStringList
+
+      \code
+      // Get the string list of data types via DataControl Plugin
+      var types = datacontrol.availableDataTypeNames();
+
+      // Iterate over the list and print to the console
+      for ( i = 0 ; i < types.length ; ++i ) {
+        print(types[i]);
+      }
+      \endcode
+
+
+
+ */

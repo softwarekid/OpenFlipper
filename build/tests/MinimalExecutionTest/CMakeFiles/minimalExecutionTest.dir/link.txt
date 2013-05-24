@@ -1,0 +1,1 @@
+/usr/bin/c++   -O3 -DNDEBUG -DINCLUDE_TEMPLATES  -ftemplate-depth-100  -W  -Wall  -Wno-unused  -Wextra  -Wno-non-virtual-dtor  -Wno-unused-parameter  -Wl,-search_paths_first -Wl,-headerpad_max_install_names   CMakeFiles/minimalExecutionTest.dir/minimalExecutionTest.cc.o  -o ../testBinaries/minimalExecTest  
